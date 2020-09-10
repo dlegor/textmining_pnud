@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: streamlitweb
+ labels:
+   app: streamlit
+spec:
+ selector:
+   matchLabels:
+     app: streamlit
+     tier: web
+ template:
+   metadata:
+     labels:
+       app: streamlit
+       tier: web
+   spec:
+     containers:
+     - name: streamlit-app
+       image: gcr.io/pnud2020/app
+       ports:
+       - containerPort: 7745
