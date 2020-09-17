@@ -4,9 +4,18 @@ from spacy import displacy
 import pandas as pd
 from PIL import Image
 from SessionState import get
+from sklearn.decomposition import PCA
+
+#Plot
+from bokeh.io import push_notebook, show, output_notebook
+from bokeh.layouts import row 
+from bokeh.plotting import figure
+from bokeh.transform import factor_cmap
+from bokeh.models import  ColumnDataSource,Range1d, LabelSet, Label
 
 from typing import Any
 #from app_basic import get
+pca=PCA(n_components=2)
 
 #Text Examples
 TEXT1="Durante el Ejercicio Fiscal 2013, se invirtieron mas recursos a este tipo de obras."
@@ -139,8 +148,6 @@ def documentation():
 
 
 def main():
-#    st.image(load_image())
-#    st.title("Aplicación Demo Minería de Textos")
     st.sidebar.title("Programas Presupuestales")
     t1=st.sidebar.selectbox(label="Selecciona un Texto",options=['Texto 1','Texto 2','Texto 3'])
 
@@ -164,33 +171,34 @@ def main():
 
     doc = process_text(spacy_model, text)
 
-    if "parser" in nlp.pipe_names:
-        st.header("Análisis del Texto & Part-of-speech tags")
-        st.sidebar.header("Relación entre palabras")
-        split_sents = st.sidebar.checkbox("División de sentencia", value=True)
-        collapse_punct = st.sidebar.checkbox("Colapso de puntuación", value=True)
-        collapse_phrases = st.sidebar.checkbox("Colapso de frases",value=True)
-        dependencies=st.sidebar.checkbox("Dependencias")
-        compact = st.sidebar.checkbox("Modo Compato")
-        options = {
-        "collapse_punct": collapse_punct,
-        "collapse_phrases": collapse_phrases,
-        "compact": compact,
-        "dependecies":dependencies,
-        "bg":"#121112",
-        "color":"#ffffff",
-        "font":"IBM Plex Sans"}
-        docs = [span.as_doc() for span in doc.sents] if split_sents else [doc]
-        for sent in docs:
-            html = displacy.render(sent, options=options,style='dep')
-            # Double newlines seem to mess with the rendering
-            html = html.replace("\n\n", "\n")
-       
-        if split_sents and len(docs) > 1:
-               st.markdown("> {}".format(sent.text))
-        st.write(HTML_WRAPPER.format(html), unsafe_allow_html=True)
-        st.text("Desplazate a la derecha la barra gris para ver toda la imagen.")
-        st.sidebar.info("Si no se visualiza la imagen,prueba una a una las opciones.")
+    st.header("Mapa de Palabras")
+    doc_input = process_text(spacy_model, text)
+    List_Vect=[]
+    List_Vect_Text=[]
+
+    for s in doc_input:
+        if s.has_vector:
+            List_Vect_Text.append(s.text)
+            List_Vect.append(s.vector)
+    
+    M=pd.DataFrame(List_Vect)
+    L=pca.fit_transform(M)
+    L2=pd.DataFrame(L)
+    L2['Text']=List_Vect_Text
+
+    L2.columns=['Col_1','Col_2','Text']
+    Plot_Text=ColumnDataSource(data=L2)
+    p = figure(plot_width=400, plot_height=350, title = "Mapa de Texto")
+    p.scatter('Col_1','Col_2',source=Plot_Text,fill_alpha=0.6,size=10)
+    p.legend.location = "top_left"
+    labels = LabelSet(x='Col_1', y='Col_2', text='Text', level='glyph',
+    text_font_size='9pt',x_offset=5, y_offset=5, source=Plot_Text, render_mode='canvas')
+    p.add_layout(labels)
+    st.bokeh_chart(p, use_container_width=True)
+    st.text("Representación de las palabras en el plano")
+
+
+
 
     if "ner" in nlp.pipe_names:
         st.header("Entidades Reconocidas")
@@ -213,13 +221,6 @@ def main():
             ]
         df = pd.DataFrame(data, columns=attrs)
         st.dataframe(df)
-
-
-#    if "textcat" in nlp.pipe_names:
-#        st.header("Text Classification")
-#        st.markdown("> {}".format(text))
- #       df = pd.DataFrame(doc.cats.items(), columns=("Label", "Score"))
- #       st.dataframe(df)
 
     st.header("Token y Atributos")
 
@@ -274,6 +275,35 @@ def main():
         'Num de palabras sin StopWords': SinStopWords}
         st.write(Dic_Stat)
 
+    if "parser" in nlp.pipe_names:
+        st.header("Análisis del Texto & Part-of-speech tags")
+        st.sidebar.header("Relación entre palabras")
+        split_sents = st.sidebar.checkbox("División de sentencia", value=True)
+        collapse_punct = st.sidebar.checkbox("Colapso de puntuación", value=True)
+        collapse_phrases = st.sidebar.checkbox("Colapso de frases",value=True)
+        dependencies=st.sidebar.checkbox("Dependencias")
+        compact = st.sidebar.checkbox("Modo Compato")
+        options = {
+        "collapse_punct": collapse_punct,
+        "collapse_phrases": collapse_phrases,
+        "compact": compact,
+        "dependecies":dependencies,
+        "bg":"#121112",
+        "color":"#ffffff",
+        "font":"IBM Plex Sans"}
+        docs = [span.as_doc() for span in doc.sents] if split_sents else [doc]
+        for sent in docs:
+            html = displacy.render(sent, options=options,style='dep')
+            # Double newlines seem to mess with the rendering
+            html = html.replace("\n\n", "\n")
+       
+        if split_sents and len(docs) > 1:
+               st.markdown("> {}".format(sent.text))
+        st.write(HTML_WRAPPER.format(html), unsafe_allow_html=True)
+        st.text("Desplazate a la derecha la barra gris para ver toda la imagen.")
+        st.sidebar.info("Si no se visualiza la imagen,prueba una a una las opciones.")
+
+  
 
 
 
